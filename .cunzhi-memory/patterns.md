@@ -4,3 +4,8 @@
 - Socket认证逻辑优化完成：1) 移除动态导入，使用静态导入AuthService 2) 将教师和学生认证逻辑合并到单一validateAuth函数中 3) 教师认证使用环境变量TEACHER_USERNAME/TEACHER_PASSWORD 4) 学生认证直接调用AuthService.login()进行数据库验证并返回studentId 5) 简化代码结构，减少函数层级，提高可读性
 - SocketHandler简化完成：1) 移除私有connections Map，避免并发写入问题，依赖Socket.IO原生连接管理 2) 删除getStats()统计功能和复杂的初始化流程 3) 统一使用UserSocket类型，修复类型不一致问题 4) 合并多个私有方法为简单的handleConnection()和joinRooms() 5) 代码从268行减少到211行，减少约21%，逻辑更清晰易维护
 - Socket架构重构完成：1) 移除UserSocket接口，使用原生Socket避免类型复杂性 2) 添加teacherSocket变量存储教师连接（单教师场景） 3) 学生连接写入数据库connection表作为唯一真实来源 4) 消息路由基于数据库查询，避免内存状态竞态条件 5) 教师不入库仅内存存储，学生连接/断开时实时更新数据库 6) 彻底解决并发写入问题，数据库作为连接信息权威来源
+- 文件上传架构：使用 @fastify/multipart 处理文件上传到外部 ../public 目录，后端专注于稳定的文件保存功能，通知教师的逻辑交由前端通过 Socket.IO 实现。上传接口精简为核心功能：接收文件、验证用户信息、保存文件、返回元数据。
+- 文件上传重构：使用 multipart/form-data 上传文件和 JSON 格式的文件信息（studentNo, groupNo, activityId）。文件命名规则：{activityId}_{groupNo}_{studentNo}_{timestamp}.{ext}。移除元数据存储，专注于文件保存和重命名。
+- 文件上传极简化：使用 request.file() 直接获取文件，文件信息通过 HTTP 头 x-file-info 传递 JSON 格式。移除文件类型验证，只保留大小限制。简化 MIME 扩展名映射逻辑。
+- 文件上传最终方案：使用 multipart/form-data，文件通过 file 字段，文件信息通过 info 字段传递 JSON 格式数据。使用 request.parts() 遍历处理，代码清晰简洁。
+- 文件上传最终方案：使用 multipart/form-data，文件通过 file 字段，文件信息通过 info 字段传递 JSON 字符串。移除 HTTP 头传递方式，所有数据统一在 POST 请求体中处理。

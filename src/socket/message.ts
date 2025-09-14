@@ -11,7 +11,13 @@
 import type { Namespace, Socket } from 'socket.io';
 import { Connect } from '../service';
 
+export enum MessageType {
+  SUBMIT = 'submit', // 学生提交消息
+  DISTRIBUTE = 'distribute', // 教师分发消息
+}
+
 export interface MessagePayload {
+  type: MessageType;
   broadcast: boolean;
   teacher: boolean;
   from: {
@@ -47,13 +53,6 @@ export class SocketEvents {
 
   /**
    * 处理消息 - 统一路由逻辑
-   * 
-   * 消息处理流程：
-   * 1. 验证消息格式
-   * 2. 解析发送者信息
-   * 3. 构建标准响应格式
-   * 4. 根据目标进行精确路由
-   * 5. 发送 ACK 确认
    */
   private handleMessage(socket: Socket, payload: MessagePayload, ack?: (res: any) => void): void {
     try {
@@ -94,6 +93,11 @@ export class SocketEvents {
       return false;
     }
     
+    // 验证 type 字段
+    if (!payload.type || !Object.values(MessageType).includes(payload.type)) {
+      return false;
+    }
+    
     // 验证 from 字段
     if (!payload.from || typeof payload.from !== 'object') {
       return false;
@@ -113,18 +117,42 @@ export class SocketEvents {
   }
 
   /**
-   * 统一消息路由 - 解析目标并路由到对应 Socket 连接
+   * 消息路由处理器类型定义
    */
-  private routeMessage(socket: Socket, payload: MessagePayload, timestamp: number): string {
+  private routeHandlers = new Map<MessageType, (socket: Socket, payload: MessagePayload, timestamp: number) => {success: boolean, target: string}>([
+    [MessageType.SUBMIT, this.handleSubmitMessage.bind(this)],
+    [MessageType.DISTRIBUTE, this.handleDistributeMessage.bind(this)]
+  ]);
 
+  /**
+   * 统一消息路由 - 基于消息类型分发到对应处理器
+   */
+  private routeMessage(socket: Socket, payload: MessagePayload, timestamp: number): {success: boolean, target: string} {
+    const handler = this.routeHandlers.get(payload.type);
+    
+    if (!handler) {
+      return {success: false, target: 'unsupported_type'};
+    }
+
+    return handler(socket, payload, timestamp);
+  }
+
+
+  /**
+   * 处理 SUBMIT 类型消息 - 学生提交给教师
+   */
+  private handleSubmitMessage(socket: Socket, payload: MessagePayload, timestamp: number): {success: boolean, target: string} {
     const senderRole = (socket as any).role;
     const senderStudentNo = (socket as any).studentNo;
     const senderGroupNo = (socket as any).groupNo;
-    const receiverRole = payload.teacher ? 'teacher' : 'student';
-    const receiverStudentNo = payload.to.studentNo;
-    const receiverGroupNo = payload.to.groupNo;
+
+    // 验证发送者是学生
+    if (senderRole !== 'student') {
+      return {success: false, target: 'invalid_sender'};
+    }
 
     const response = {
+      type: payload.type,
       from: {
         role: senderRole,
         studentNo: senderStudentNo,
@@ -134,24 +162,36 @@ export class SocketEvents {
       at: timestamp
     };
 
-    //=====学生消息路由=====
-    if (senderRole === 'student') {
-      // 1. 发送给教师
-      if (receiverRole === 'teacher') {
-        this.namespace.to('teacher').emit('message', response);
-        return 'teacher';
-      }
+    this.namespace.to('teacher').emit('message', response);
+    return {success: true, target: 'teacher'};
+  }
+
+  
+  /**
+   * 处理 DISTRIBUTE 类型消息 - 教师分发给学生
+   */
+  private handleDistributeMessage(socket: Socket, payload: MessagePayload, timestamp: number): {success: boolean, target: string} {
+    const senderRole = (socket as any).role;
+    const senderStudentNo = (socket as any).studentNo;
+    const senderGroupNo = (socket as any).groupNo;
+
+    // 验证发送者是教师
+    if (senderRole !== 'teacher') {
+      return {success: false, target: 'invalid_sender'};
     }
 
-    //=====教师消息路由=====
-    if (senderRole === 'teacher') {
-      // 1. 广播给学生
-      if (receiverRole === 'student') {
-        this.namespace.to('student').emit('message', response);
-        return 'student';
-      }
-    }
+    const response = {
+      type: payload.type,
+      from: {
+        role: senderRole,
+        studentNo: senderStudentNo,
+        groupNo: senderGroupNo
+      },
+      data: payload.data,
+      at: timestamp
+    };
 
-    return 'invalid_target';
+    this.namespace.to('student').emit('message', response);
+    return {success: true, target: 'student'};
   }
 }

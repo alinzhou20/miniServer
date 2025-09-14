@@ -205,6 +205,7 @@ export class SocketHandler {
       if (globalTeacherSocket) {
         globalTeacherSocket.emit('student_online', {
           studentNo,
+          groupNo,
           socketId: socket.id,
           timestamp: Date.now()
         });
@@ -216,6 +217,7 @@ export class SocketHandler {
         if (globalTeacherSocket) {
           globalTeacherSocket.emit('student_offline', {
             studentNo,
+            groupNo,
             socketId: socket.id,
             timestamp: Date.now()
           });
