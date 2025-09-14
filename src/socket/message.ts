@@ -18,8 +18,6 @@ export enum MessageType {
 
 export interface MessagePayload {
   type: MessageType;
-  broadcast: boolean;
-  teacher: boolean;
   from: {
     groupNo: string;
     studentNo: string;
@@ -69,12 +67,7 @@ export class SocketEvents {
       
       // 3. 发送 ACK 确认
       if (ack) {
-        ack({ 
-          code: 200, 
-          message: 'delivered', 
-          routed: routeResult,
-          at: timestamp 
-        });
+        ack(routeResult);
       }
 
     } catch (error: any) {
