@@ -24,19 +24,19 @@ export interface ApiResponse<T = unknown> {
  * 构造成功响应
  * @template T 数据类型
  * @param {T} data - 响应数据
- * @param {string} message - 成功消息，默认为 'ok'
+ * @param {string} message - 成功消息，默认为 'success'
  * @returns {ApiResponse<T>} 成功响应对象
  */
-export function ok<T>(data?: T, message = 'ok'): ApiResponse<T> {
+export function success<T>(data?: T, message = 'success'): ApiResponse<T> {
   return { code: 200, message, data, at: Date.now() };
 }
 
 /**
  * 构造失败响应
  * @param {number} code - 错误状态码，默认为 400
- * @param {string} message - 错误消息，默认为 'bad request'
+ * @param {string} message - 错误消息，默认为 'failure'
  * @returns {ApiResponse<never>} 失败响应对象
  */
-export function fail(code = 400, message = 'bad request'): ApiResponse<never> {
+export function failure(code = 400, message = 'failure'): ApiResponse<never> {
   return { code, message, at: Date.now() };
 }

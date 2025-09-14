@@ -9,6 +9,7 @@
 - 活动（activity）：课堂活动；
 - 标准（criterion）：活动评价标准；
 - 评价（evaluation）：真实评价，学生 × 标准多表。
+- 连接（connection）：动态连接；
 
 教师不落库，使用环境变量单独设置。
 
@@ -17,6 +18,8 @@
 - `activity` 1-n `criterion`。
 - `criterion` 1-n `evaluation`。
 - `student` 1-n `evaluation`。
+- `student` 1-1 `connection`（动态表，仅存储当前在线学生）。
+- `activity` 1-n `connection`（一个活动可以有多个在线学生）。
 
 ## 3. 表结构
 
@@ -25,13 +28,10 @@
 |---|---|---|---|
 | id | INTEGER | PRIMARY KEY | 主键 |
 | enroll_year | INTEGER | NOT NULL | 入学年份 |
-| real_name | TEXT | NOT NULL | 真实姓名 |
-| class_no | INTEGER | NOT NULL | 班级号 |
+| real_name | TEXT | | 真实姓名 |
+| class_seq | INTEGER | NOT NULL | 班级号 |
 | student_no | INTEGER | UNIQUE NOT NULL | 学号 |
-| group_no | INTEGER |  | 小组号 |
 | pin | TEXT | CHECK(length(pin)=4) | 4 位密码（可为空） |
-| is_active | INTEGER | NOT NULL DEFAULT 0 CHECK(is_active IN (0,1)) | 是否登录（0：未登录，1：已登录） |
-| role | INTEGER | NOT NULL DEFAULT 0 CHECK(role IN (0,1,2)) | 角色（0：操作员，1：评价员，2：管理员） |
 | info_awareness | REAL | NOT NULL DEFAULT 0.0 | 维度1：信息意识评分 |
 | computational_thinking | REAL | NOT NULL DEFAULT 0.0 | 维度2：计算思维评分 |
 | digital_learning_innovation | REAL | NOT NULL DEFAULT 0.0 | 维度3：数字化学习与创新评分 |
@@ -97,3 +97,47 @@
 约束：`UNIQUE(criterion_id, student_id)`（学生×标准唯一）
 
 索引：`evaluation_student_idx(student_id)`
+
+### 3.6 connection（在线连接）
+
+| 字段 | 类型 | 约束/默认 | 说明 |
+|---|---|---|---|
+| student_id | INTEGER | PRIMARY KEY REFERENCES student(id) ON DELETE CASCADE | 学生ID（主键） |
+| activity_id | INTEGER | REFERENCES activity(id) ON DELETE SET NULL | 当前参与的活动ID |
+| socket_id | TEXT | NOT NULL UNIQUE | Socket.IO 连接ID |
+| group_no | INTEGER | NOT NULL | 小组号（冗余字段） |
+| role | TEXT | NOT NULL DEFAULT 'student' | 角色（student/teacher） |
+| connected_at | INTEGER | NOT NULL | 连接建立时间 |
+
+约束：`UNIQUE(student_id-socket_id)`（Socket ID唯一）
+
+### 3.7 connection_view（连接视图）
+**说明**: 联合视图，便于查看在线学生的详细信息和当前参与的活动。
+
+```sql
+CREATE VIEW connection_view AS
+SELECT 
+    c.student_id,
+    c.socket_id,
+    c.group_no,
+    c.role,
+    c.connected_at,
+    c.last_activity,
+    s.class_seq,
+    s.student_no,
+    s.real_name,
+    a.id as activity_id,
+    a.seq as activity_seq,
+    a.type as activity_type,
+    a.title as activity_title,
+    a.content_json as activity_content,
+    course.id as course_id,
+    course.title as course_title,
+    course.grade as course_grade,
+    course.unit as course_unit,
+    course.seq as course_seq,
+FROM connection c
+LEFT JOIN student s ON c.student_id = s.id
+LEFT JOIN activity a ON c.activity_id = a.id
+LEFT JOIN course ON a.course_id = course.id;
+```

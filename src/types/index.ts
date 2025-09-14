@@ -1,21 +1,9 @@
+// 极简类型定义
 export type UserRole = 'teacher' | 'student';
 
-export interface JwtPayloadCommon {
+export interface SimpleUser {
   role: UserRole;
-  iat?: number;
-  exp?: number;
+  studentNo?: number;
+  groupNo?: number;
+  realName?: string;
 }
-
-export interface TeacherJwtPayload extends JwtPayloadCommon {
-  role: 'teacher';
-  username: string;
-}
-
-export interface StudentJwtPayload extends JwtPayloadCommon {
-  role: 'student';
-  studentId: number;
-  studentNo: number;
-  groupNo: number | null;
-}
-
-export type AnyJwtPayload = TeacherJwtPayload | StudentJwtPayload;
