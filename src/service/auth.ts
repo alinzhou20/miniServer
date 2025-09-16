@@ -7,8 +7,9 @@
  * 3. 替代原有的 student 模块认证功能
  */
 
-import { findByClass } from '../../data/studentDao';
-import { parseClassNumber } from '../../utils';
+import { findByClass } from '../data/studentDao';
+import { parseClassNumber } from '../utils';
+import { Connect } from './connection';
 
 /**
  * 认证请求接口
@@ -75,7 +76,13 @@ export class Auth {
         }
       }
 
-      // 5. 返回成功结果
+      // 5. 根据id查找连接
+      const connection = Connect.findByStudentId(student.id);
+      if (connection) {
+        return { success: false, message: '学生已连接' };
+      }
+
+      // 6. 返回成功结果
       return {
         success: true,
         message: '认证成功',

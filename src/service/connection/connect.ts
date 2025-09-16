@@ -7,8 +7,8 @@
  * 3. 作为 Socket 层和数据层之间的桥梁
  */
 
-import { createConnection, deleteBySocketId, findBySocketId, findByGroupNo, findByStudentNo } from '../../data/connectionDao.js';
-import type { CreateConnectionInput, Connection, ConnectionView } from '../../data/connectionDao.js';
+import { createConnection, deleteBySocketId, findConnectionView, findByStudentId } from '../../data/connectionDao.js';
+import type { Connection } from '../../data/connectionDao.js';
 
 /**
  * 连接信息接口
@@ -42,10 +42,24 @@ export class Connect {
   }
 
   /**
-   * 查询连接信息
+   * 获取所有连接
    */
-  static findConnection(socketId: string): Connection | undefined {
-    return findBySocketId(socketId);
+  static findAll(): {studentNo: number, groupNo: number, at: number}[] {
+    const at = Date.now();
+    const connections = findConnectionView();
+    const students = connections.map(connection => ({
+      studentNo: connection.student_no,
+      groupNo: connection.group_no,
+      at
+    }));
+    return students;
+  }
+
+  /**
+   * 根据学生ID查找连接
+   */
+  static findByStudentId(studentId: number): Connection | undefined {
+    return findByStudentId(studentId);
   }
 
   /**
@@ -53,34 +67,5 @@ export class Connect {
    */
   static removeConnection(socketId: string): boolean {
     return deleteBySocketId(socketId);
-  }
-
-  /**
-   * 根据小组号查找连接
-   */
-  static findConnectionsByGroupNo(groupNo: number): Connection[] {
-    return findByGroupNo(groupNo);
-  }
-
-  /**
-   * 根据学号查找连接（包含详细信息）
-   */
-  static findConnectionsByStudentNo(studentNo: number): ConnectionView[] {
-    return findByStudentNo(studentNo);
-  }
-
-  /**
-   * 通过 socketId 获取连接信息
-   */
-  static getConnectionBySocketId(socketId: string): Connection | undefined {
-    return findBySocketId(socketId);
-  }
-
-  /**
-   * 判断是否为学生连接
-   */
-  static isStudentConnection(socketId: string): boolean {
-    const connection = findBySocketId(socketId);
-    return connection?.role === 'student';
   }
 }

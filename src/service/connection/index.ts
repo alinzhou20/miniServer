@@ -10,4 +10,4 @@
 export { Connect, type ConnectionInfo } from './connect';
 
 // 认证服务
-export { Auth, type AuthRequest, type AuthResult } from './auth';
+export { Auth, type AuthRequest, type AuthResult } from '../auth';

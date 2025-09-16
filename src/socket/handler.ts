@@ -85,7 +85,7 @@ export class SocketHandler {
    * 验证认证信息
    * 
    * 教师认证：username + password (环境变量配置)
-   * 学生认证：调用 AuthService 进行数据库验证
+   * 学生认证：调用 AuthService 验证学生表
    */
   static async validateAuth(auth: AuthData): Promise<{ valid: boolean; studentId?: number; message?: string }> {
     if (!auth?.role ) {
@@ -172,7 +172,8 @@ export class SocketHandler {
     
     // 加入教师房间
     socket.join('teacher');
-
+    console.log(`[SocketHandler] 教师连接成功: ${socket.id}`);
+    
     // 处理教师断开连接
     socket.on('disconnect', () => {
       globalTeacherSocket = null;
@@ -201,31 +202,30 @@ export class SocketHandler {
       if (groupNo) socket.join(`group:${groupNo}`);
       
       // 发送认证成功消息
-      console.log(`[SocketHandler] 学生认证成功: ${socket.id}`);
+      console.log(`[SocketHandler] 学生连接成功: ${studentNo}`);
       if (globalTeacherSocket) {
-        globalTeacherSocket.emit('student_online', {
+        globalTeacherSocket.emit('online', {
           studentNo,
           groupNo,
-          socketId: socket.id,
-          timestamp: Date.now()
+          at: Date.now()
         });
       }
 
       // 处理学生断开连接
       socket.on('disconnect', () => {
         Connect.removeConnection(socket.id);
+        console.log(`[SocketHandler] 学生断开连接: ${studentNo}`);
         if (globalTeacherSocket) {
-          globalTeacherSocket.emit('student_offline', {
+          globalTeacherSocket.emit('offline', {
             studentNo,
             groupNo,
-            socketId: socket.id,
-            timestamp: Date.now()
+            at: Date.now()
           });
         }
       });
 
     } catch (error) {
-      console.error(`[SocketHandler] 学生连接处理失败: ${socket.id}`, error);
+      console.error(`[SocketHandler] 学生连接处理失败: ${studentNo}`, error);
       socket.disconnect();
     }
   }

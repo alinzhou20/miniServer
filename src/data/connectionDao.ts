@@ -235,7 +235,7 @@ export function findByGroupNo(groupNo: number): Connection[] {
  * @param {number} studentNo - 学号
  * @returns {ConnectionView[]} 该学号的连接视图列表（包含学生、活动、课程信息）
  */
-export function findByStudentNo(studentNo: number): ConnectionView[] {
+export function findByConnectionStudentNo(studentNo: number): ConnectionView[] {
   return findByStudentNoStmt.all(studentNo) as ConnectionView[];
 }
 
