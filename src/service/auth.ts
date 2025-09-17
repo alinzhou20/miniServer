@@ -76,11 +76,11 @@ export class Auth {
         }
       }
 
-      // 5. 根据id查找连接
-      const connection = Connect.findByStudentId(student.id);
-      if (connection) {
-        return { success: false, message: '学生已连接' };
-      }
+      // // 5. 根据id查找连接
+      // const connection = Connect.findByStudentId(student.id);
+      // if (connection) {
+      //   return { success: false, message: '学生已连接' };
+      // }
 
       // 6. 返回成功结果
       return {
