@@ -4,5 +4,11 @@
  * 提供所有业务服务的统一入口
  */
 
-// 连接管理服务
-export { Connect, Auth, type AuthRequest } from './connection';
+// 认证服务
+export * from './auth.js';
+
+// 记录服务
+export * from './record.js';
+
+// 恢复服务
+export * from './restore.js';

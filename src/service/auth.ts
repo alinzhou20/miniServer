@@ -1,97 +1,56 @@
 /**
- * 连接认证服务
- * 
- * 职责：
- * 1. 学生身份认证和验证
- * 2. 直接查询 studentDao，避免并发冲突
- * 3. 替代原有的 student 模块认证功能
+ * 认证服务 - 主体身份验证和管理
  */
 
-import { findByClass } from '../data/studentDao';
-import { parseClassNumber } from '../utils';
-import { Connect } from './connection';
+import { createEntity, findEntityByStudentNo, findEntitiesByGroupId, updateEntity } from '../data/index.js';
+import { EntityMode } from '../type/index.js';
+import type { EntityModel } from '../type/index.js';
 
 /**
- * 认证请求接口
+ * 主体登录（根据模式验证并创建或获取主体ID）
  */
-export interface AuthRequest {
-  classNo: string;
-  studentNo: number;
-  pin4?: string;
-}
+export async function login(mode: EntityMode, entity: EntityModel): Promise<number> {
+  const studentNo = entity.student_no;
+  const groupId = entity.group_id;
+  const role = entity.role;
 
-/**
- * 认证结果接口
- */
-export interface AuthResult {
-  success: boolean;
-  message?: string;
-  studentId?: number;
-  student?: {
-    id: number;
-    studentNo: number;
-    realName: string;
-  };
-}
-
-/**
- * 连接认证服务类
- */
-export class Auth {
-  /**
-   * 学生认证
-   * 
-   * 直接查询学生数据库进行认证，避免并发冲突
-   * 
-   * @param request 认证请求参数
-   * @returns 认证结果
-   */
-  static authenticate(request: AuthRequest): AuthResult {
-    // 1. 验证请求参数
-    if (!request.classNo || !request.studentNo) {
-      return { success: false, message: '认证信息不完整' };
-    }
-
-    const { classNo, studentNo, pin4 } = request;
-
-    try {
-      // 2. 解析班级编号
-      const { enrollYear, classSeq } = parseClassNumber(classNo);
-
-      // 3. 查询班级学生列表
-      const students = findByClass(enrollYear, classSeq);
-      const student = students.find(s => s.student_no === studentNo);
-      
-      if (!student) {
-        return { success: false, message: '学生信息不存在' };
-      }
-
-      // 4. 验证PIN码（如果设置了PIN）
-      if (student.pin) {
-        if (!pin4) {
-          return { success: false, message: '请输入PIN码' };
-        }
-        if (student.pin !== pin4) {
-          return { success: false, message: 'PIN码错误' };
-        }
-      }
-
-      // // 5. 根据id查找连接
-      // const connection = Connect.findByStudentId(student.id);
-      // if (connection) {
-      //   return { success: false, message: '学生已连接' };
-      // }
-
-      // 6. 返回成功结果
-      return {
-        success: true,
-        message: '认证成功',
-        studentId: student.id,
-      };
-
-    } catch (error) {
-      console.error('[ConnectionAuth] 认证过程中发生错误:', error);
-      return { success: false, message: '认证过程中发生错误' };
-    }
+  // 基础验证
+  switch (mode) {
+    case EntityMode.STUDENT:
+      if (!studentNo) throw new Error('STUDENT模式需要学号');
+      break;
+    case EntityMode.GROUP:
+      if (!groupId) throw new Error('GROUP模式需要组号');
+      break;
+    case EntityMode.STUDENT_GROUP:
+      if (!studentNo || !groupId) throw new Error('STUDENT_GROUP模式需要学号和组号');
+      break;
+    case EntityMode.STUDENT_GROUP_ROLE:
+      if (!studentNo || !groupId || role === undefined) throw new Error('STUDENT_GROUP_ROLE模式需要学号、组号和角色');
+      break;
+    default:
+      throw new Error(`不支持的模式: ${mode}`);
   }
+
+  // 查找现有主体
+  let existing: EntityModel | undefined;
+  
+  if (mode === EntityMode.GROUP) {
+    // GROUP模式：按小组查找
+    const groupEntities = await findEntitiesByGroupId(groupId!);
+    existing = groupEntities[0];
+  } else {
+    // 其他模式：按学号查找
+    existing = await findEntityByStudentNo(studentNo!);
+  }
+
+  // 更新主体
+  if (existing) {
+    await updateEntity(existing.id!, entity);
+    return existing.id!;
+  } 
+
+  // 创建主体 
+  const newEntity = await createEntity(entity);
+  return newEntity.id!;
 }

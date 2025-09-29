@@ -1,232 +1,99 @@
 /**
- * Socket 主处理器
- * 初始化 + 握手验证 + 协调逻辑
+ * Socket 处理（函数式，单命名空间）
  */
 
 import { Server, Socket, Namespace } from 'socket.io';
-import { Connect, Auth } from '../service';
-import { SocketEvents } from './message';
+import { registerSubmitEvents } from './submit.js';
+import { registerDispatchEvents } from './dispatch.js';
+import { registerDiscussEvents } from './discuss.js';
+import { registerRequestEvents } from './request.js';
+import { login } from '../service/index.js';
+import { EntityMode, EventType } from '../type/index.js';
 
 // 全局教师 socket 连接
 let globalTeacherSocket: Socket | null = null;
 
-export interface AuthData {
-  role: 'teacher' | 'student';
-  studentNo: number;
-  groupNo: number;
-  classNo?: string;
-  pin4?: string;
-  username?: string;
-  password?: string;
-}
-
 /**
- * 初始化 Socket.IO 服务
+ * 初始化 Socket.IO 服务（函数式，无处理类）
  */
-export function initSocket(io: Server): SocketHandler {
-  const classroomNamespace = io.of('/classroom');
-  
-  // 握手验证中间件
-  classroomNamespace.use(async (socket, next) => {
-    const headers = socket.handshake.headers;
-    const auth: AuthData = {
-      role: headers.role as 'teacher' | 'student',
-      studentNo: Number(headers.student_no),
-      groupNo: Number(headers.group_no),
-      classNo: headers.class_no as string,
-      pin4: headers.pin4 as string,
-      username: headers.username as string,
-      password: headers.password as string
-    };    
-    
-    const result = await SocketHandler.validateAuth(auth);
-    
-    if (!result.valid) {
-      console.log(`[Socket] 握手验证失败: ${result.message}`);
-      return next(new Error(result.message || '认证失败'));
-    }
-    
-    // 将验证结果写入 socket
-    (socket as any).role = auth.role;
-    if (result.studentId) {
-      (socket as any).studentId = result.studentId;
-      (socket as any).studentNo = auth.studentNo;
-      (socket as any).groupNo = auth.groupNo;
-    }
-    
-    next();
-  });
-  
-  const handler = new SocketHandler(classroomNamespace);
-  handler.init();
-  
-  console.log('[Socket] Socket.IO服务已启动 - /classroom (握手验证已启用)');
-  return handler;
-}
+export function initSocket(io: Server): void {
+  const namespace: Namespace = io.of('/classroom');
 
+  namespace.on('connection', async (socket: Socket) => {
+    // 根据 Socket.IO auth 选项决定类型
+    const auth = socket.handshake.auth;
+    const type = auth?.type === 'student' ? 'student' : 'teacher';
+    (socket as any).type = type;
 
-export class SocketHandler {
-  private namespace: Namespace;
-  private events: SocketEvents;
-
-  constructor(namespace: Namespace) {
-    this.namespace = namespace;
-    this.events = new SocketEvents(namespace);
-  }
-
-  /**
-   * 获取全局教师连接
-   */
-  static getTeacherSocket(): Socket | null {
-    return globalTeacherSocket;
-  }
-
-  /**
-   * 验证认证信息
-   * 
-   * 教师认证：username + password (环境变量配置)
-   * 学生认证：调用 AuthService 验证学生表
-   */
-  static async validateAuth(auth: AuthData): Promise<{ valid: boolean; studentId?: number; message?: string }> {
-    if (!auth?.role ) {
-      return { valid: false, message: '缺少角色信息' };
-    }
-    
-    // 教师认证
-    if (auth.role === 'teacher') {
-      const teacherUsername = process.env.TEACHER_USERNAME || 'admin';
-      const teacherPassword = process.env.TEACHER_PASSWORD || 'bgxx2025';
-      
-      if (!auth.username || !auth.password) {
-        return { valid: false, message: '缺少用户名或密码' };
-      }
-      
-      if (auth.username === teacherUsername && auth.password === teacherPassword) {
-        return { valid: true };
-      }
-      
-      return { valid: false, message: '用户名或密码错误' };
-    }
-    
-    // 学生认证
-    if (auth.role === 'student') {
-      if (!auth.classNo || !auth.studentNo || !auth.groupNo ) {
-        return { valid: false, message: '学生认证信息不完整' };
-      }
-
-      try {
-        const result = Auth.authenticate({
-          classNo: auth.classNo,
-          studentNo: auth.studentNo,
-          pin4: auth.pin4,
-        });
-
-        if (result.success) {
-          return { 
-            valid: true, 
-            studentId: result.studentId 
-          };
-        }
-        
-        return { valid: false, message: result.message || '认证失败' };
-      } catch (error) {
-        return { valid: false, message: '认证过程中发生错误' };
-      }
-    }
-    
-    return { valid: false, message: '未知角色类型' };
-  }
-
-  /**
-   * 初始化事件处理
-   */
-  init(): void {
-    this.namespace.on('connection', (socket) => {
-      this.handleConnection(socket);
-    });
-
-    console.log('[SocketHandler] Socket事件处理器初始化完成');
-  }
-
-  /**
-   * 处理连接事件
-   */
-  private handleConnection(socket: Socket): void {
-
-    if ((socket as any).role === 'teacher') {
-      this.handleTeacherConnection(socket);
-    } else if ((socket as any).role === 'student') {
-      this.handleStudentConnection(socket);
-    }
-    
-    // 注册事件监听器
-    this.events.registerEvents(socket);
-  }
-
-  /**
-   * 处理教师连接
-   */
-  private handleTeacherConnection(socket: Socket): void {
-    // 存储全局教师连接
-    globalTeacherSocket = socket;
-    
-    // 加入教师房间
-    socket.join('teacher');
-    console.log(`[SocketHandler] 教师连接成功: ${socket.id}`);
-    
-    // 处理教师断开连接
-    socket.on('disconnect', () => {
-      globalTeacherSocket = null;
-      console.log(`[SocketHandler] 教师断开连接: ${socket.id}`);
-    });
-  }
-
-  /**
-   * 处理学生连接
-   */
-  private handleStudentConnection(socket: Socket): void {
-    const studentId = (socket as any).studentId; // 从握手验证中获取
-    const groupNo = (socket as any).groupNo;
-    const studentNo = (socket as any).studentNo;
-    
-    try {
-      Connect.createStudentConnection({
-        studentId,
-        socketId: socket.id,
-        groupNo
+     if (type === 'student') {
+      // 设置实体模式
+      const mode = auth?.mode;
+      const studentNo = auth?.studentNo;
+      const groupNo = auth?.groupNo;
+      const studentRole = auth?.studentRole;
+      // 数据库认证登录
+      const entityId = await login(mode, {
+        student_no: studentNo,
+        group_id: groupNo,
+        role: studentRole,  
       });
+      (socket as any).entityId = entityId;
+       // 加入对应学号的房间（先清理已存在的连接）
+       if (studentNo && mode != EntityMode.GROUP) {
+         const studentRoomName = `student:${studentNo}`;
+         const existingSockets = await namespace.in(studentRoomName).fetchSockets();
+         
+         // 断开已存在的相同学号连接
+         for (const existingSocket of existingSockets) {
+           console.log(`[Socket] 断开已存在的学号 ${studentNo} 连接: ${existingSocket.id}`);
+           existingSocket.emit(EventType.OFF_LINE, { code: 200, message: '连接已存在，断开旧连接', at: Date.now() });
+           existingSocket.disconnect();
+         }
+         
+         (socket as any).studentNo = studentNo;
+         socket.join(studentRoomName);
+       }
 
-      // 加入房间
-      socket.join('student');
-      if (studentNo) socket.join(`student:${studentNo}`);
-      if (groupNo) socket.join(`group:${groupNo}`);
-      
-      // 发送认证成功消息
-      console.log(`[SocketHandler] 学生连接成功: ${studentNo}`);
-      if (globalTeacherSocket) {
-        globalTeacherSocket.emit('online', {
-          studentNo,
-          groupNo,
-          at: Date.now()
-        });
-      }
+       // 加入对应小组号的房间
+       if (groupNo && mode != EntityMode.STUDENT) {
+         (socket as any).groupNo = groupNo;
+         socket.join(`group:${groupNo}`);
 
-      // 处理学生断开连接
+         // 加入对应组内角色的房间（先清理已存在的连接）
+         if (studentRole !== undefined && mode == EntityMode.STUDENT_GROUP_ROLE) {
+           const roleRoomName = `student:group:${groupNo}:${studentRole}`;
+           const existingRoleSockets = await namespace.in(roleRoomName).fetchSockets();
+           
+           // 断开已存在的同组内角色连接
+           for (const existingSocket of existingRoleSockets) {
+             console.log(`[Socket] 断开已存在的组${groupNo}角色${studentRole}连接: ${existingSocket.id}`);
+             existingSocket.emit('offline', { code: 200, message: '连接已存在，断开旧连接', at: Date.now() });
+           }
+           
+           (socket as any).studentRole = studentRole;
+           socket.join(roleRoomName);
+         }
+       }
+
+      console.log(`[Socket] 学生连接${groupNo ? `: ${groupNo}` : `${studentRole}`}`);
       socket.on('disconnect', () => {
-        Connect.removeConnection(socket.id);
-        console.log(`[SocketHandler] 学生断开连接: ${studentNo}`);
-        if (globalTeacherSocket) {
-          globalTeacherSocket.emit('offline', {
-            studentNo,
-            groupNo,
-            at: Date.now()
-          });
-        }
+        console.log(`[Socket] 学生断开${groupNo ? `: ${groupNo}` : `${studentRole}`}`);
       });
-
-    } catch (error) {
-      console.error(`[SocketHandler] 学生连接处理失败: ${studentNo}`, error);
-      socket.disconnect();
+    } else {
+      // 教师连接
+      globalTeacherSocket = socket;
+      socket.join('teacher'); // 加入教师房间
+      console.log(`[Socket] 教师连接: ${socket.id}`);
+      socket.on('disconnect', () => {
+        globalTeacherSocket = null;
+        console.log(`[Socket] 教师断开: ${socket.id}`);
+      });
     }
-  }
+
+    // 注册所有事件处理器
+    registerSubmitEvents(namespace, socket);
+    registerDispatchEvents(namespace, socket);
+    registerDiscussEvents(namespace, socket);
+    registerRequestEvents(namespace, socket);
+  });
 }
