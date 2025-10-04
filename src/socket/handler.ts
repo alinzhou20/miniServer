@@ -9,6 +9,8 @@ import { registerDiscussEvents } from './discuss.js';
 import { registerRequestEvents } from './request.js';
 import { login } from '../service/index.js';
 import { EntityMode, EventType } from '../type/index.js';
+import type { SubmitMessage } from '../type/index.js';
+import { encode } from '@msgpack/msgpack';
 
 // 全局教师 socket 连接
 let globalTeacherSocket: Socket | null = null;
@@ -75,9 +77,69 @@ export function initSocket(io: Server): void {
          }
        }
 
-      console.log(`[Socket] 学生连接${groupNo ? `: ${groupNo}` : `${studentRole}`}`);
+      console.log(`[Socket] 学生连接${groupNo ? `: ${groupNo}组` : ''}${studentRole ? ` ${studentRole}` : ''}`);
+      
+      // 如果是学生组角色模式，向教师发送登录通知
+      if (groupNo && studentNo && studentRole) {
+        const loginPayload: SubmitMessage = {
+          mode: EntityMode.STUDENT_GROUP_ROLE,
+          eventType: EventType.SUBMIT,
+          messageType: 'student_login',
+          activityIndex: '-1',
+          data: encode({
+            groupNo: groupNo,
+            studentNo: studentNo,
+            studentRole: studentRole,
+            loginTime: Date.now()
+          }),
+          from: {
+            id: `${studentNo}_${groupNo}`,
+            studentNo: studentNo,
+            groupNo: groupNo,
+            studentRole: studentRole
+          },
+          to: null
+        };
+        
+        // 向教师发送登录通知
+        namespace.to('teacher').emit(EventType.SUBMIT, loginPayload);
+        console.log(`[Socket] 已向教师发送学生登录通知: ${groupNo}组 ${studentRole} (${studentNo}号)`);
+      }
+      
       socket.on('disconnect', () => {
-        console.log(`[Socket] 学生断开${groupNo ? `: ${groupNo}` : `${studentRole}`}`);
+        // 获取学生信息
+        const disconnectStudentNo = (socket as any).studentNo;
+        const disconnectGroupNo = (socket as any).groupNo;
+        const disconnectStudentRole = (socket as any).studentRole;
+        
+        console.log(`[Socket] 学生断开${disconnectGroupNo ? `: ${disconnectGroupNo}组` : ''}${disconnectStudentRole ? ` ${disconnectStudentRole}` : ''}`);
+        
+        // 如果是学生组角色模式，向教师发送离线通知
+        if (disconnectGroupNo && disconnectStudentNo && disconnectStudentRole) {
+          const logoutPayload: SubmitMessage = {
+            mode: EntityMode.STUDENT_GROUP_ROLE,
+            eventType: EventType.SUBMIT,
+            messageType: 'student_logout',
+            activityIndex: '-1',
+            data: encode({
+              groupNo: disconnectGroupNo,
+              studentNo: disconnectStudentNo,
+              studentRole: disconnectStudentRole,
+              logoutTime: Date.now()
+            }), 
+            from: {
+              id: `${disconnectStudentNo}_${disconnectGroupNo}`,
+              studentNo: disconnectStudentNo,
+              groupNo: disconnectGroupNo,
+              studentRole: disconnectStudentRole
+            },
+            to: null
+          };
+          
+          // 向教师发送离线通知
+          namespace.to('teacher').emit(EventType.SUBMIT, logoutPayload);
+          console.log(`[Socket] 已向教师发送学生离线通知: ${disconnectGroupNo}组 ${disconnectStudentRole} (${disconnectStudentNo}号)`);
+        }
       });
     } else {
       // 教师连接

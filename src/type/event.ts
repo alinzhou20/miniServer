@@ -34,7 +34,7 @@ export interface BaseMessage {
   eventType: EventType;
   messageType: string;
   activityIndex: string;
-  data: Buffer;
+  data: any;
 }
 
 /**

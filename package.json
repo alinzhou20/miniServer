@@ -17,11 +17,14 @@
     "dotenv": "^16.4.0",
     "fastify": "^5.6.0",
     "socket.io": "^4.7.5",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "@msgpack/msgpack": "^3.0.0"
+
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
     "@types/sqlite3": "^3.1.11",
+
     "nodemon": "^3.1.10",
     "tsx": "^4.20.5",
     "typescript": "^5.5.4"
