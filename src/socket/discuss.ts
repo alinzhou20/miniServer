@@ -22,19 +22,19 @@ export function handleDiscuss(namespace: Namespace, socket: Socket, payload: Dis
 
   // 根据目标进行讨论消息分发
   if (to.studentNo?.length) {
+    console.log(`[Discuss] 发送给指定学生`)
     // 发送给指定学生
     to.studentNo.forEach(studentNo => {
       namespace.to(`student:${studentNo}`).emit(EventType.DISCUSS, payload);
     });
   } else if (to.groupNo?.length) {
+    console.log(`[Discuss] 发送给指定小组`)
     // 发送给指定小组
     to.groupNo.forEach(groupNo => {
       namespace.to(`group:${groupNo}`).emit(EventType.DISCUSS, payload);
     });
-  } else if (senderGroupNo) {
-    // 发送给当前学生所在的小组
-    namespace.to(`group:${senderGroupNo}`).emit(EventType.DISCUSS, payload);
   } else {
+    console.log(`[Discuss] 广播给所有学生`)
     // 广播给所有学生
     namespace.emit(EventType.DISCUSS, payload);
   }
