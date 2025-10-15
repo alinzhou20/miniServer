@@ -33,6 +33,15 @@ export function initSocket(io: Server): void {
       const studentNo = auth?.studentNo;
       const groupNo = auth?.groupNo;
       const studentRole = auth?.studentRole;
+      
+      // 验证必要参数
+      if (mode === undefined) {
+        console.error('[Socket] 学生连接缺少 mode 参数');
+        socket.emit('error', { code: 400, message: '缺少必要的认证参数 mode' });
+        socket.disconnect();
+        return;
+      }
+      
       // 数据库认证登录
       const entityId = await login(mode, {
         student_no: studentNo,
