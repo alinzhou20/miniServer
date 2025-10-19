@@ -5,7 +5,6 @@
 
 export {
   EventType,
-  EntityMode,
 } from './event.js';
 
 export type { 
@@ -13,9 +12,8 @@ export type {
   SubmitMessage,
   DispatchMessage,
   DiscussMessage,
-  RequestMessage,
-  EntityRestoreMessages,
-  TeacherRestoreMessages,
+  ReqMessage,
+  AckMessage,
 } from './event.js';
 
-export type { EntityModel, MessageModel } from './model.js';
+export type { UserModel, MessageModel } from './model.js';

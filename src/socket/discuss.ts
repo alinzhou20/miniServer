@@ -1,60 +1,75 @@
 /**
- * Discuss 事件处理器 - 学生讨论
+ * 学生讨论事件处理器
+ * 负责处理学生之间的讨论消息，支持点对点、小组内、角色间的交流
  */
 
 import type { Namespace, Socket } from 'socket.io';
-import type { DiscussMessage } from '../type/index.js';
+import type { DiscussMessage, AckMessage } from '../type/index.js';
 import { EventType } from '../type/index.js';
 import { recordMessage } from '../service/index.js';
 
 /**
- * 处理学生讨论事件 (学生 -> 学生/小组)
- */
-export function handleDiscuss(namespace: Namespace, socket: Socket, payload: DiscussMessage): void {
-  // 验证权限：仅学生可讨论
-  if ((socket as any).type !== 'student') {
-    throw new Error('仅学生可讨论');
-  }
-
-  const { to } = payload;
-  const senderGroupNo = (socket as any).groupNo;
-  const mode = (socket as any).mode;
-
-  // 根据目标进行讨论消息分发
-  if (to.studentNo?.length) {
-    console.log(`[Discuss] 发送给指定学生`)
-    // 发送给指定学生
-    to.studentNo.forEach(studentNo => {
-      namespace.to(`student:${studentNo}`).emit(EventType.DISCUSS, payload);
-    });
-  } else if (to.groupNo?.length) {
-    console.log(`[Discuss] 发送给指定小组`)
-    // 发送给指定小组
-    to.groupNo.forEach(groupNo => {
-      namespace.to(`group:${groupNo}`).emit(EventType.DISCUSS, payload);
-    });
-  } else {
-    console.log(`[Discuss] 广播给所有学生`)
-    // 广播给所有学生
-    namespace.emit(EventType.DISCUSS, payload);
-  }
-
-  // 记录消息
-  recordMessage(payload);
-
-  console.log(`[Discuss] 学生 ${socket.id} 讨论成功`);
-}
-
-/**
- * 注册 Discuss 事件监听器
+ * 注册讨论事件监听器
+ * @param namespace - Socket.IO 命名空间
+ * @param socket - 客户端 socket 连接
  */
 export function registerDiscussEvents(namespace: Namespace, socket: Socket): void {
-  socket.on(EventType.DISCUSS, (payload: DiscussMessage) => {
+  // 仅学生需要监听讨论事件
+  if ((socket as any).type !== 'student') return;
+  
+  socket.on(EventType.DISCUSS, async (payload: DiscussMessage, callback: Function) => {
+    const { studentNo, groupNo } = (socket as any);
+    
     try {
-      handleDiscuss(namespace, socket, payload);
+      const { to, from } = payload;
+      let targetInfo = '';
+      
+      // 根据不同的目标类型进行讨论消息分发
+      if (to.studentNo?.length) {
+        // 1. 发送给同学
+        to.studentNo.forEach(no => {
+          namespace.to(`student:${no}`).emit(EventType.DISCUSS, payload);
+        });
+        targetInfo = `学生[${to.studentNo.join(', ')}]`;
+        
+      } else if (to.groupNo?.length) {
+        // 2. 发送给小组
+        to.groupNo.forEach(no => {
+          namespace.to(`group:${no}`).emit(EventType.DISCUSS, payload);
+        });
+        targetInfo = `小组[${to.groupNo.join(', ')}]`;
+        
+      } else {
+        // 3. 广播给同学
+        const senderGroup = groupNo;
+        if (senderGroup) {
+          namespace.to(`group:${senderGroup}`).emit(EventType.DISCUSS, payload);
+          targetInfo = `全体同学`;
+        }
+      }
+      
+      // 记录消息到数据库
+      await recordMessage(payload);
+      
+      // 通过回调返回确认
+      const ack: AckMessage = {
+        success: true,
+        timestamp: Date.now()
+      };
+      
+      if (callback) callback(ack);
+      console.log(`[Discuss] ${studentNo}号${groupNo ? `(${groupNo}组)` : ''} -> ${targetInfo}`);
+      
     } catch (error: any) {
-      console.error('[Discuss] 处理失败:', error.message);
-      socket.emit(EventType.ERROR, { type: 'discuss_error', message: error.message });
+      // 通过回调返回错误
+      const ack: AckMessage = {
+        success: false,
+        message: error.message,
+        timestamp: Date.now()
+      };
+      
+      if (callback) callback(ack);
+      console.error('[Discuss] 失败:', error.message);
     }
   });
 }

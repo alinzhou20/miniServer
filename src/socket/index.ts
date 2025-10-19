@@ -1,12 +1,7 @@
 /**
- * Socket 模块导出
- * 统一导出所有公共接口
+ * Socket 模块统一导出
+ * 提供 WebSocket 连接管理和事件处理的入口
  */
 
+// 导出初始化函数
 export { initSocket } from './handler.js';
-
-// 导出各个事件处理器
-export { registerSubmitEvents, handleSubmit } from './submit.js';
-export { registerDispatchEvents, handleDispatch } from './dispatch.js';
-export { registerDiscussEvents, handleDiscuss } from './discuss.js';
-export { registerRequestEvents, handleRequest } from './request.js';

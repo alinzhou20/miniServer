@@ -5,11 +5,13 @@
 /**
  * 主体实体（可以是学生、小组等）
  */
-export interface EntityModel {
+export interface UserModel {
   id?: number;
-  student_no?: number;               // 学号（可选但唯一）
-  group_id?: number;                 // 组号
-  role?: number;                     // 组内角色
+  student_no?: number;         // 学号
+  group_no?: number;           // 组号
+  role?: string;               // 角色
+  status?: string;             // 状态
+  last_login_at?: number;      // 最后登录时间
 }
 
 /**
@@ -17,12 +19,11 @@ export interface EntityModel {
  */
 export interface MessageModel {
   id?: number;
-  from_id?: number | null;            // 来源ID（null表示教师）
-  to_id?: number | null;              // 目标ID（null表示教师）
-  event_type?: string;                // 事件类型
-  message_type?: string;              // 消息类型
-  activity_index?: number;            // 活动序号
-  data?: Buffer;                      // 已序列化的二进制数据
-  created_at?: number;                // 时间戳
+  from_no?: number;            // 发送者学号
+  to_no?: number;              // 接收者学号
+  event_type?: string;         // 事件类型
+  message_type?: string;       // 消息类型
+  data?: Buffer;               // 消息数据（BLOB）
+  created_at?: number;         // 创建时间戳
 }
 

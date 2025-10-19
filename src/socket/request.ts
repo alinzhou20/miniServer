@@ -1,47 +1,61 @@
 /**
- * Submit 事件处理器 - 学生提交
+ * 数据请求事件处理器
+ * 处理客户端的请求并直接返回响应
  */
 
 import type { Namespace, Socket } from 'socket.io';
-import type { RequestMessage } from '../type/index.js';
+import type { ReqMessage, AckMessage } from '../type/index.js';
 import { EventType } from '../type/index.js';
-import { entitySendActivitySend, entityActivityReceive, teacherActivityRestore } from '../service/index.js';
-/**
- * 处理请求事件 (客户端 -> 服务端)
- * 默认为恢复消息
- */
-export function handleRequest(namespace: Namespace, socket: Socket, payload: RequestMessage): void {
-  // 路由处理
-  const type = (socket as any).type;
-  const entityId = (socket as any).entityId;
-  const activityIndex = Number(payload.activityIndex);
-  let result = null
-  if (type == 'student') {
-    const sentResult = entitySendActivitySend(entityId, activityIndex);
-    const receivedResult = entityActivityReceive(entityId, activityIndex);
-    result = {
-      sent: sentResult,
-      received: receivedResult,
-    }
-  } else if (type == 'teacher') {
-    result = teacherActivityRestore(activityIndex);
-  }
-
-  // 发送给自己
-  namespace.to(socket.id).emit(EventType.REQUEST, result);
-  console.log(`[Request] 客户端 ${socket.id} 请求成功`);
-}
 
 /**
- * 注册 Request 事件监听器
+ * 注册请求事件监听器
+ * @param namespace - Socket.IO 命名空间
+ * @param socket - 客户端 socket 连接
  */
 export function registerRequestEvents(namespace: Namespace, socket: Socket): void {
-  socket.on(EventType.REQUEST, (payload: RequestMessage) => {
+  // 使用回调模式处理请求-响应
+  socket.on(EventType.REQ, async (payload: ReqMessage, callback: Function) => {
+    const { messageType, data } = payload;
+    const userType = (socket as any).type;
+    const userId = userType === 'student' ? (socket as any).studentNo : 'teacher';
+    
     try {
-      handleRequest(namespace, socket, payload);
+      let responseData = null;
+      
+      // 根据请求类型处理
+      switch (messageType) {
+        case 'create':
+          responseData = { /* TODO: 实现创建逻辑 */ };
+          break;
+          
+        case 'restore':  
+          responseData = { /* TODO: 实现恢复逻辑 */ };
+          break;
+          
+        default:
+          throw new Error(`未知请求类型: ${messageType}`);
+      }
+      
+      // 通过回调直接返回成功响应
+      const ack: AckMessage = {
+        success: true,
+        data: responseData,
+        timestamp: Date.now()
+      };
+      
+      if (callback) callback(ack);
+      console.log(`[Request] ${userType}(${userId}) <- ${messageType}`);
+      
     } catch (error: any) {
-      console.error('[Request] 处理失败:', error.message);
-      socket.emit(EventType.ERROR, { type: 'request_error', message: error.message });
+      // 通过回调返回错误响应
+      const ack: AckMessage = {
+        success: false,
+        message: error.message,
+        timestamp: Date.now()
+      };
+      
+      if (callback) callback(ack);
+      console.error(`[Request] ${userType}(${userId}) 失败:`, error.message);
     }
   });
 }
