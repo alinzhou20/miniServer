@@ -24,10 +24,8 @@ async function main(): Promise<void> {
   const io = new IOServer(app.server, {
     cors: { origin: true },
     transports: ['websocket', 'polling'],
-    // 心跳机制配置
     pingInterval: 5000,      // 每 5 秒发送一次 ping
     pingTimeout: 10000,      // 10 秒内没有响应则认为断开
-    // 连接超时配置
     connectTimeout: 10000,   // 连接超时时间 10 秒
   });
   

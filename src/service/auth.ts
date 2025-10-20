@@ -3,7 +3,7 @@
  * 处理用户登录逻辑
  */
 
-import { createTable, dropTable } from '../data/connect.js';
+import { createTable, dropTable, checkTableExists } from '../data/connect.js';
 import { findUserByStudentNo, createUser } from '../data/userDao.js';
 import type { ReqEvent } from '../type/index.js';
 
@@ -48,17 +48,30 @@ export async function studentLogin(payload: ReqEvent): Promise<{ success: boolea
  */
 export async function teacherLogin(payload: ReqEvent): Promise<{ success: boolean; message: string; user?: any }> {
   try {
-    // 删除旧表并创建新表
-    await dropTable();
-    await createTable();
+    const { loginType, loginIndex } = payload.data;
+    // 预登录检查表是否存在
+    if (loginIndex === 0) {
+      const tableExists = await checkTableExists();
+      if (tableExists) {
+        return {
+          success: false,
+          message: '数据表已存在'
+        };
+      }
+    }
+
+    // 登录并重置数据表
+    if (loginIndex === 1 && loginType === 'reset') {
+      await dropTable();
+      await createTable();
+    }
     
     return {
       success: true,
-      message: '教师登录成功，数据已重置',
+      message: '教师登录成功',
       user: {
         studentNo: 0,
         role: 'teacher',
-        groupNo: null
       }
     };
   } catch (error: any) {
@@ -98,12 +111,15 @@ export async function studentLogout(payload: ReqEvent): Promise<{ success: boole
  */
 export async function teacherLogout(payload: ReqEvent): Promise<{ success: boolean; message: string }> {
   try {
+    const { logoutType } = payload.data;
     // 删除所有数据表
-    await dropTable();
+    if (logoutType === 'clear') {
+      await dropTable();
+    }
     
     return {
       success: true,
-      message: '教师登出成功，数据已清除'
+      message: '教师登出成功'
     };
   } catch (error: any) {
     return {
