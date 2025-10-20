@@ -8,12 +8,12 @@ export {
 } from './event.js';
 
 export type { 
-  BaseMessage,
-  SubmitMessage,
-  DispatchMessage,
-  DiscussMessage,
-  ReqMessage,
-  AckMessage,
+  BaseEvent,
+  SubmitEvent,
+  DispatchEvent,
+  DiscussEvent,
+  ReqEvent,
 } from './event.js';
 
-export type { UserModel, MessageModel } from './model.js';
+export type { UserModel, MessageModel, FileModel } from './model.js';
+export type { AckMessage, StatusMessage } from './message.js';

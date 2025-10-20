@@ -28,7 +28,7 @@ export function initSocket(io: Server): void {
     (socket as any).studentRole = auth?.studentRole;
 
     if (type === 'student') {
-      await handleStudentConnection(namespace, socket, auth);
+      await handleStudentConnection(namespace, socket);
     } else {
       await handleTeacherConnection(namespace, socket);
     }
@@ -46,33 +46,34 @@ export function initSocket(io: Server): void {
  */
 async function handleStudentConnection(
   namespace: Namespace, 
-  socket: Socket, 
-  auth: any
+  socket: Socket
 ): Promise<void> {
-  const { studentNo, groupNo, studentRole } = auth;
+  const { studentNo, groupNo, studentRole } = (socket as any);
   
   // 加入学号房间（用于点对点消息）
-  if (studentNo) {
-    const studentRoom = `student:${studentNo}`;
+  if (studentNo !== undefined && studentNo !== null && studentNo !== '') {
     
     // 踢掉同学号的旧连接
-    const existingSockets = await namespace.in(studentRoom).fetchSockets();
+    const existingSockets = await namespace.in(`student:${studentNo}`).fetchSockets();
     for (const existing of existingSockets) {
       existing.disconnect();
     }
     
-    socket.join(studentRoom);
+    socket.join(`student:${studentNo}`);
   }
   
   // 加入小组房间（用于小组消息）
-  if (groupNo) {
+  if (groupNo !== undefined && groupNo !== null && groupNo !== '') {
     socket.join(`group:${groupNo}`);
     
     // 如果有角色，加入角色房间
-    if (studentRole) {
-      socket.join(`role:${groupNo}:${studentRole}`);
+    if (studentRole !== undefined && studentRole !== null && studentRole !== '') {
+      socket.join(`role:${studentRole}`);
     }
   }
+
+  // 加入全体学生房间
+  socket.join(`student`);
   
   console.log(`[Socket] 学生连接: ${studentNo || '未知'}${groupNo ? ` (${groupNo}组)` : ''}`);
   

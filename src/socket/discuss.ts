@@ -4,7 +4,7 @@
  */
 
 import type { Namespace, Socket } from 'socket.io';
-import type { DiscussMessage, AckMessage } from '../type/index.js';
+import type { DiscussEvent, AckMessage } from '../type/index.js';
 import { EventType } from '../type/index.js';
 import { recordMessage } from '../service/index.js';
 
@@ -17,11 +17,11 @@ export function registerDiscussEvents(namespace: Namespace, socket: Socket): voi
   // 仅学生需要监听讨论事件
   if ((socket as any).type !== 'student') return;
   
-  socket.on(EventType.DISCUSS, async (payload: DiscussMessage, callback: Function) => {
+  socket.on(EventType.DISCUSS, async (payload: DiscussEvent, callback: Function) => {
     const { studentNo, groupNo } = (socket as any);
     
     try {
-      const { to, from } = payload;
+      const { to } = payload;
       let targetInfo = '';
       
       // 根据不同的目标类型进行讨论消息分发
@@ -41,11 +41,8 @@ export function registerDiscussEvents(namespace: Namespace, socket: Socket): voi
         
       } else {
         // 3. 广播给同学
-        const senderGroup = groupNo;
-        if (senderGroup) {
-          namespace.to(`group:${senderGroup}`).emit(EventType.DISCUSS, payload);
-          targetInfo = `全体同学`;
-        }
+        namespace.to(`student`).emit(EventType.DISCUSS, payload);
+        targetInfo = `全体同学`;
       }
       
       // 记录消息到数据库

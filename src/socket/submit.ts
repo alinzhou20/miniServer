@@ -4,7 +4,7 @@
  */
 
 import type { Namespace, Socket } from 'socket.io';
-import type { SubmitMessage, AckMessage } from '../type/index.js';
+import type { SubmitEvent, AckMessage } from '../type/index.js';
 import { EventType } from '../type/index.js';
 import { recordMessage } from '../service/index.js';
 
@@ -17,7 +17,7 @@ export function registerSubmitEvents(namespace: Namespace, socket: Socket): void
   // 仅学生需要监听提交事件
   if ((socket as any).type !== 'student') return;
   
-  socket.on(EventType.SUBMIT, async (payload: SubmitMessage, callback: Function) => {
+  socket.on(EventType.SUBMIT, async (payload: SubmitEvent, callback: Function) => {
     const { studentNo, groupNo } = (socket as any);
     
     try {

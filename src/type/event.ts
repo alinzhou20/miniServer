@@ -12,7 +12,7 @@ export enum EventType {
 /**
  * 基础消息接口
  */
-export interface BaseMessage {
+export interface BaseEvent {
   eventType: EventType;
   messageType: string;
   data: any;
@@ -21,7 +21,7 @@ export interface BaseMessage {
 /**
  * 提交消息载荷（学生 -> 教师）
  */
-export interface SubmitMessage extends BaseMessage {
+export interface SubmitEvent extends BaseEvent {
   from: {
     studentNo: string;
     groupNo?: string;
@@ -32,7 +32,7 @@ export interface SubmitMessage extends BaseMessage {
 /**
  * 分发消息载荷（教师 -> 学生）
  */
-export interface DispatchMessage extends BaseMessage {
+export interface DispatchEvent extends BaseEvent {
   to: {
     studentNo: string[];
     groupNo?: string[];
@@ -43,7 +43,7 @@ export interface DispatchMessage extends BaseMessage {
 /**
  * 讨论消息载荷（学生 <-> 学生）
  */
-export interface DiscussMessage extends BaseMessage {
+export interface DiscussEvent extends BaseEvent {
   from: {
     studentNo: string;
     groupNo?: string;
@@ -59,20 +59,10 @@ export interface DiscussMessage extends BaseMessage {
 /**
  * 请求消息载荷（客户端 -> 服务端）
  */
-export interface ReqMessage extends BaseMessage {
+export interface ReqEvent extends BaseEvent {
   from: {
     studentNo: string;
     groupNo?: string;
     studentRole?: string;
   };
-}
-
-/**
- * 确认消息（服务端 -> 客户端）
- */
-export interface AckMessage {
-  success: boolean;      // 是否成功
-  message?: string;      // 可选的消息说明
-  data?: any;           // 可选的响应数据
-  timestamp: number;     // 时间戳
 }

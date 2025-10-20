@@ -95,8 +95,6 @@ export async function initDatabase(): Promise<void> {
       PRAGMA temp_store=MEMORY;            -- 临时表存储在内存中
       PRAGMA cache_size=-8192;             -- 约 8MB 缓存（负数表示 KB）
     `);
-    // 创建表结构
-    await createTable();
 
     console.log('[Database] 数据库初始化成功');
   } catch (e) {
@@ -121,7 +119,7 @@ export async function createTable(): Promise<void> {
         student_no INTEGER UNIQUE NOT NULL,              -- 学号
         group_no INTEGER,                                -- 组号
         role TEXT ,                                      -- 角色
-        status TEXT NOT NULL DEFAULT 'offline',          -- 状态
+        status TEXT NOT NULL DEFAULT '{}',               -- 状态（JSON）
         last_login_at INTEGER NOT NULL                   -- 时间戳
       );
       -- 消息表
@@ -137,7 +135,7 @@ export async function createTable(): Promise<void> {
       
       -- 自动插入教师用户（学号为 0）
       INSERT OR IGNORE INTO user (student_no, group_no, role, status, last_login_at)
-      VALUES (0, NULL, 'teacher', 'offline', 0);
+      VALUES (0, NULL, 'teacher', '{}', 0);
       
       COMMIT;
     `);
@@ -164,5 +162,20 @@ export async function dropTable(): Promise<void> {
     // 回滚事务
     try { await exec('ROLLBACK;'); } catch {}
     throw e;
+  }
+}
+
+/**
+ * 检查用户和消息表是否存在
+ * @returns Promise<boolean>
+ */
+export async function checkTableExists(): Promise<boolean> {
+  try {
+    const result = await get<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND (name='user' OR name='message');"
+    );
+    return !!result;
+  } catch {
+    return false;
   }
 }

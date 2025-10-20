@@ -18,6 +18,7 @@ export async function createUser(input: UserModel): Promise<UserModel> {
   );
   const row = await get<UserModel>(`SELECT * FROM user WHERE student_no = ?;`, [result.lastID]);
   if (!row) throw new Error('创建用户失败');
+  if (row.status && typeof row.status === 'string') row.status = JSON.parse(row.status);
   return row;
 }
 
@@ -36,7 +37,9 @@ export async function findUserById(id: number): Promise<UserModel | undefined> {
  * @returns 用户实体或 undefined
  */
 export async function findUserByStudentNo(studentNo: number): Promise<UserModel | undefined> {
-  return get<UserModel>(`SELECT * FROM user WHERE student_no = ?;`, [studentNo]);
+  const row = await get<UserModel>(`SELECT * FROM user WHERE student_no = ?;`, [studentNo]);
+  if (row && row.status && typeof row.status === 'string') row.status = JSON.parse(row.status);
+  return row;
 }
 
 /**
@@ -73,14 +76,38 @@ export async function findUsersByStatus(status: string): Promise<UserModel[]> {
  * @returns 更新后的用户实体
  */
 export async function updateUser(studentNo: number, input: UserModel): Promise<UserModel> {
+  const fields: string[] = [];
+  const values: any[] = [];
+  
+  if (input.student_no !== undefined) {
+    fields.push('student_no = ?');
+    values.push(input.student_no);
+  }
+  if (input.group_no !== undefined) {
+    fields.push('group_no = ?');
+    values.push(input.group_no);
+  }
+  if (input.role !== undefined) {
+    fields.push('role = ?');
+    values.push(input.role);
+  }
+  if (input.status !== undefined) {
+    fields.push('status = ?');
+    values.push(typeof input.status === 'string' ? input.status : JSON.stringify(input.status));
+  }
+  
+  if (fields.length === 0) throw new Error('没有要更新的字段');
+  
+  values.push(studentNo);
   const result = await run(
-    `UPDATE user SET student_no = ?, group_no = ?, role = ? WHERE student_no = ?;`,
-    [input.student_no ?? null, input.group_no ?? null, input.role ?? null, studentNo]
+    `UPDATE user SET ${fields.join(', ')} WHERE student_no = ?;`,
+    values
   );
   if (result.changes === 0) throw new Error('更新用户失败：用户不存在');
   
   const row = await get<UserModel>(`SELECT * FROM user WHERE student_no = ?;`, [studentNo]);
   if (!row) throw new Error('更新用户失败');
+  if (row.status && typeof row.status === 'string') row.status = JSON.parse(row.status);
   return row;
 }
 

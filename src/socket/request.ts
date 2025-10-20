@@ -4,8 +4,9 @@
  */
 
 import type { Namespace, Socket } from 'socket.io';
-import type { ReqMessage, AckMessage } from '../type/index.js';
+import type { ReqEvent, AckMessage } from '../type/index.js';
 import { EventType } from '../type/index.js';
+import { studentLogin, teacherLogin, studentLogout, teacherLogout, updateStudentStatus } from '../service/index.js';
 
 /**
  * 注册请求事件监听器
@@ -14,18 +15,61 @@ import { EventType } from '../type/index.js';
  */
 export function registerRequestEvents(namespace: Namespace, socket: Socket): void {
   // 使用回调模式处理请求-响应
-  socket.on(EventType.REQ, async (payload: ReqMessage, callback: Function) => {
-    const { messageType, data } = payload;
+  socket.on(EventType.REQ, async (payload: ReqEvent, callback: Function) => {
+    const { messageType, from, data } = payload;
     const userType = (socket as any).type;
-    const userId = userType === 'student' ? (socket as any).studentNo : 'teacher';
     
     try {
       let responseData = null;
       
       // 根据请求类型处理
       switch (messageType) {
-        case 'create':
-          responseData = { /* TODO: 实现创建逻辑 */ };
+
+        // 登录
+        case 'login':
+          if (userType === 'teacher') {
+            responseData = await teacherLogin(payload);
+          } else {
+            responseData = await studentLogin(payload);
+            // 学生登录成功后，向教师广播通知
+            if (responseData.success) {
+              namespace.to('teacher').emit(EventType.SUBMIT, {
+                eventType: EventType.SUBMIT,
+                messageType: 'login',
+                data: responseData.user
+              });
+            }
+          }
+          break;
+        
+        // 登出
+        case 'logout':
+          if (userType === 'teacher') {
+            responseData = await teacherLogout(payload);
+          } else {
+            responseData = await studentLogout(payload);
+            // 学生登出成功后，向教师广播通知
+            if (responseData.success) {
+              namespace.to('teacher').emit(EventType.SUBMIT, {
+                eventType: EventType.SUBMIT,
+                messageType: 'logout',
+                data: responseData.user
+              });
+            }
+          }
+          break;
+        
+        // 更新状态
+        case 'update':
+          responseData = await updateStudentStatus(payload);
+          // 学生状态更新成功后，向教师广播通知
+          if (responseData.success) {
+            namespace.to('teacher').emit(EventType.SUBMIT, {
+              eventType: EventType.SUBMIT,
+              messageType: 'update',
+              data: responseData.status
+            });
+          }
           break;
           
         case 'restore':  
@@ -44,7 +88,7 @@ export function registerRequestEvents(namespace: Namespace, socket: Socket): voi
       };
       
       if (callback) callback(ack);
-      console.log(`[Request] ${userType}(${userId}) <- ${messageType}`);
+      console.log(`[Request] ${userType} <- ${messageType}`);
       
     } catch (error: any) {
       // 通过回调返回错误响应
@@ -55,7 +99,7 @@ export function registerRequestEvents(namespace: Namespace, socket: Socket): voi
       };
       
       if (callback) callback(ack);
-      console.error(`[Request] ${userType}(${userId}) 失败:`, error.message);
+      console.error(`[Request] ${userType} 失败:`, error.message);
     }
   });
 }

@@ -95,3 +95,5 @@ Thumbs.db
 build/
 dist/
 out/
+
+uploads/

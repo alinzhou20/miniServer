@@ -4,7 +4,7 @@
  */
 
 import type { Namespace, Socket } from 'socket.io';
-import type { DispatchMessage, AckMessage } from '../type/index.js';
+import type { DispatchEvent, AckMessage } from '../type/index.js';
 import { EventType } from '../type/index.js';
 import { recordMessage } from '../service/index.js';
 
@@ -17,7 +17,7 @@ export function registerDispatchEvents(namespace: Namespace, socket: Socket): vo
   // 仅教师需要监听分发事件
   if ((socket as any).type !== 'teacher') return;
   
-  socket.on(EventType.DISPATCH, async (payload: DispatchMessage, callback: Function) => {
+  socket.on(EventType.DISPATCH, async (payload: DispatchEvent, callback: Function) => {
     try {
       const { to } = payload;
       let targetInfo = '';
@@ -39,7 +39,7 @@ export function registerDispatchEvents(namespace: Namespace, socket: Socket): vo
         
       } else {
         // 3. 广播给学生
-        namespace.emit(EventType.DISPATCH, payload);
+        namespace.to(`student`).emit(EventType.DISPATCH, payload);
         targetInfo = '全体学生';
       }
       
