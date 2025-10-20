@@ -5,8 +5,8 @@ export enum EventType {
   SUBMIT = 'submit',      // 提交(学生 -> 教师)
   DISPATCH = 'dispatch',  // 分发(教师 -> 学生)
   DISCUSS = 'discuss',    // 讨论(学生 <-> 学生)
-  REQ = 'req',    // 请求(客户端 -> 服务端)
-  ACK = 'ack',           // 确认(服务端 -> 客户端)
+  REQ = 'req',            // 请求(客户端 -> 服务端)
+  ACK = 'ack',            // 确认(服务端 -> 客户端)
 }
 
 /**

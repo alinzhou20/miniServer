@@ -32,6 +32,7 @@ export interface MessageModel {
  */
 export interface FileModel {
   id?: number;
+  user_no?: number;            // 用户学号
   name?: string;               // 文件名
   path?: string;               // 文件路径
   size?: number;               // 文件大小
