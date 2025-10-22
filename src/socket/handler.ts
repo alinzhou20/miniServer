@@ -8,6 +8,7 @@ import { registerSubmitEvents } from './submit.js';
 import { registerDispatchEvents } from './dispatch.js';
 import { registerDiscussEvents } from './discuss.js';
 import { registerRequestEvents } from './request.js';
+import { EventType } from '../type/index.js';
 
 /**
  * 初始化 Socket.IO 服务
@@ -80,6 +81,24 @@ async function handleStudentConnection(
   // 断开连接时的清理
   socket.on('disconnect', () => {
     console.log(`[Socket] 学生断开: ${studentNo || '未知'}`);
+    namespace.to('teacher').emit(EventType.SUBMIT, {
+      messageType: 'logout',
+      from: {
+        studentNo,
+        groupNo,
+        studentRole
+      }
+    });
+  });
+
+  // 提交登录信息
+  namespace.to('teacher').emit(EventType.SUBMIT, {
+    messageType: 'login',
+    from: {
+      studentNo,
+      groupNo,
+      studentRole
+    }
   });
 }
 
